@@ -1,0 +1,4 @@
+net\voidhttp\render\Generator.class
+net\voidhttp\render\Main.class
+net\voidhttp\render\transformer\JSXTransformer.class
+net\voidhttp\render\Compiler.class
