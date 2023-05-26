@@ -1,6 +1,7 @@
 package net.voidhttp.render;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class Generator {
@@ -20,6 +21,7 @@ public class Generator {
         // get the current working directory
         File workingDir = Paths.get(".").toFile();
         File projectDir = new File(workingDir, name);
+        File targetDir = new File(projectDir, "target");
 
         // check if the given path already exists
         if (projectDir.exists()) {
@@ -33,10 +35,16 @@ public class Generator {
             return;
         }
 
+        // create the html target folder
+        if (!targetDir.mkdirs()) {
+            System.out.println("Unable to create output folder");
+            return;
+        }
+
         // create the template html file
         copyResource("template.html", projectDir);
         // create the demo index html file
-        copyResource("index.html", projectDir);
+        copyResource("index.html", targetDir);
 
         // create the components folder
         File components = new File(projectDir, "components");
@@ -86,7 +94,7 @@ public class Generator {
     private void copyResource(String resource, File directory) {
         File file = new File(directory, resource);
         try (InputStream streamIn = getClass().getClassLoader().getResourceAsStream(resource);
-             OutputStream streamOut = new FileOutputStream(file)) {
+             OutputStream streamOut = Files.newOutputStream(file.toPath())) {
             if (streamIn == null) {
                 System.out.println("Missing resource " + resource);
                 System.exit(0);

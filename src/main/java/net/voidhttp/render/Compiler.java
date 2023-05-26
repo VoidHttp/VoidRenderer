@@ -38,7 +38,8 @@ public class Compiler {
         // get the output javascript file path
         File projectFolder = new File(target);
         File publicFolder = new File(projectFolder, "public");
-        File output = new File(publicFolder, "app.js");
+        File outputFile = new File(publicFolder, "app.js");
+        File targetFolder = new File(projectFolder, "target");
 
         // read the html generation template if is enabled
         String htmlTemplate = null;
@@ -63,7 +64,7 @@ public class Compiler {
         transformer.init();
 
         // create the output javascript file writer
-        try (OutputStreamWriter writer = new OutputStreamWriter(Files.newOutputStream(output.toPath()), StandardCharsets.UTF_8)) {
+        try (OutputStreamWriter writer = new OutputStreamWriter(Files.newOutputStream(outputFile.toPath()), StandardCharsets.UTF_8)) {
             // write the application setup header
             writer.write("let app = new App(document.getElementById('root'));\n");
             writer.write("let page = null;\n");
@@ -123,7 +124,7 @@ public class Compiler {
                 // generate a html page for the page if it is enabled
                 if (generateHtml) {
                     // get the file of the html page
-                    File pageFile = new File(target, name + ".html");
+                    File pageFile = new File(targetFolder, name + ".html");
                     // do not regenerate html if it already exists
                     if (pageFile.isFile())
                         continue;
@@ -132,7 +133,7 @@ public class Compiler {
                     String template = htmlTemplate
                         .replace("$title", name.substring(0, 1).toUpperCase() + name.substring(1))
                         .replace("$page", name)
-                        .replace("$file", output.getName().substring(0, output.getName().length() - 3));
+                        .replace("$file", outputFile.getName().substring(0, outputFile.getName().length() - 3));
                     // write the template to the page html file
                     writeFile(pageFile, template);
 
