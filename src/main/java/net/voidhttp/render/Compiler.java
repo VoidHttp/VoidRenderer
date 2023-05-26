@@ -20,6 +20,8 @@ public class Compiler {
     }
 
     public void compile() {
+        System.out.println("[Void] Using content root " + new File(target).getAbsoluteFile());
+
         // get the components and the pages folder
         File componentsDir = new File(target, "components");
         File pagesDir = new File(target, "pages");
@@ -61,7 +63,7 @@ public class Compiler {
         transformer.init();
 
         // create the output javascript file writer
-        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(output), StandardCharsets.UTF_8)) {
+        try (OutputStreamWriter writer = new OutputStreamWriter(Files.newOutputStream(output.toPath()), StandardCharsets.UTF_8)) {
             // write the application setup header
             writer.write("let app = new App(document.getElementById('root'));\n");
             writer.write("let page = null;\n");
@@ -74,6 +76,11 @@ public class Compiler {
 
             // handle the component files
             for (File file : components) {
+                // skip non-jsx files
+                String extension = file.getName().substring(file.getName().lastIndexOf('.'));
+                if (!extension.equals(".jsx"))
+                    continue;
+
                 // read and compile the component file content
                 String content = compile(file, "component", transformer)
                     .replaceAll("[\r\n]+", "\n");
@@ -92,6 +99,11 @@ public class Compiler {
             compiled = 0;
             // handle page files
             for (File file : pages) {
+                // skip non-jsx files
+                String extension = file.getName().substring(file.getName().lastIndexOf('.'));
+                if (!extension.equals(".jsx"))
+                    continue;
+
                 // read and compile the page file content
                 String content = compile(file, "page", transformer)
                     .replaceAll("[\r\n]+", "\n");
@@ -164,7 +176,7 @@ public class Compiler {
     }
 
     private void writeFile(File file, String content) {
-        try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(file), StandardCharsets.UTF_8)) {
+        try (OutputStreamWriter writer = new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8)) {
             writer.write(content);
         } catch (IOException e) {
             System.out.println("Unable to write file " + file);
