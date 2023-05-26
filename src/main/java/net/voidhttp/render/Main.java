@@ -36,12 +36,11 @@ public class Main {
 
         parser.parse(args);
 
-        if (compile.isPresent()) {
+        if (compile.isPresent())
             new Compiler(compile.stringValue(), generateHtml.isPresent()).compile();
-        }
 
-        if (newProject.isPresent()) {
+        if (newProject.isPresent())
             new Generator(newProject.stringValue()).generate();
-        }
+
     }
 }
