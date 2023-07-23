@@ -1,6 +1,6 @@
 /**
  * Generate a random component identifier.
- * @returns random unique identifier
+ * @returns {string} random unique identifier
  */
 const randomID = () => 'v-' + Math.floor(Math.random() * 1000000);
 
@@ -16,6 +16,7 @@ const body = document.body || document.getElementsByTagName('body')[0];
 
 /**
  * The array of the registered components.
+ * @type {Component[]}
  */
 let components = [];
 
@@ -32,22 +33,22 @@ class Font {
     /**
      * The default font used by the framework. Credits for bootstrap 4.
      */
-    static DEAULT = {
+    static DEFAULT = {
         name: 'System-UI',
         value: 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans","Liberation Sans",sans-serif,"Apple Color Emoji","Segoe UI Emoji","Segoe UI Symbol","Noto Color Emoji"'
     }
 }
 
 /**
- * Represents a renderable HTML node in the application.
+ * Represents a renderer HTML node in the application.
  * It is the base class of every framework elements.
  */
 class Component {
     /**
      * Initialize component node.
-     * @param tag component tag
-     * @param component attributes
-     * @param content component children
+     * @param {string} tag component tag
+     * @param {Object} component attributes
+     * @param {...Component} content component children
      */
     constructor(tag, attributes, ...content) {
         this.tag = tag;
@@ -65,7 +66,7 @@ class Component {
      * Render the component. Determine what exactly should be displayed
      * on the screen from the component. By default, the component renders
      * itself, but class-based renderers may override this.
-     * @returns
+     * @returns {Component} component rendering result
      */
     render() {
         return this;
@@ -99,7 +100,7 @@ class Component {
 
     /**
      * Add a node to the component content.
-     * @param node node to add
+     * @param {Component} node node to add
      */
     addNode(node) {
         this.content.push(node);
@@ -107,7 +108,7 @@ class Component {
 
     /**
      * Add multiple nodes to the component content.
-     * @param nodes nodes to add
+     * @param {...Component} nodes nodes to add
      */
     addNodes(...nodes) {
         for (const node of nodes) {
@@ -117,9 +118,10 @@ class Component {
 
     /**
      * Get the component's corresponding HTMl element.
+     * @returns {HTMLElement | null} DOM component element
      */
     getElement() {
-        document.getElementById(this.attributes.id);
+        return document.getElementById(this.attributes.id);
     }
 
     /**
@@ -134,7 +136,7 @@ class Component {
 
     /**
      * Update the state of the component.
-     * @param newState - new component states
+     * @param {Object} newState - new component states
      */
     setState(newState) {
         // update the state object
@@ -149,7 +151,7 @@ class Component {
     /**
      * Parse the full component with all its nodes to a string,
      * that can be rendered onto a HTML root element.
-     * @returns component string representation
+     * @returns {string} component string representation
      */
     parse() {
         // extract the parse information from this component
@@ -231,7 +233,7 @@ class Component {
         this.handleSpecialAttributes(componentStyle);
         // add component-declared style
         for (let key in componentStyle) {
-            // check if the key is an aliase
+            // check if the key is an alias
             if (key in styles)
                 key = styles[key];
             styleParsed += `${key}:${componentStyle[key]};`;
@@ -265,8 +267,8 @@ class Component {
 
     /**
      * Get the value of the given attribute key.
-     * @param callback attribute value handler
-     * @param names attribute key aliases
+     * @param {Function} callback attribute value handler
+     * @param {...string} names attribute key aliases
      */
     getAttribute(callback, ...names) {
         for (let name of names) {
@@ -277,7 +279,7 @@ class Component {
 
     /**
      * Get the style of the component.
-     * @returns css style map
+     * @returns {{}} css style map
      */
     style() {
         return {};
@@ -292,7 +294,7 @@ class Layout extends Component {
      * Render the component. Determine what exactly should be displayed
      * on the screen from the component. By default, the component renders
      * itself, but class-based renderers may override this.
-     * @returns
+     * @returns {Component} component rendering result
      */
     render() {
         // create the parent class that will hold the elements
@@ -324,6 +326,12 @@ class FlexLayout extends Layout {
 }
 
 class Text extends Layout {
+    /**
+     * Render the component. Determine what exactly should be displayed
+     * on the screen from the component. By default, the component renders
+     * itself, but class-based renderers may override this.
+     * @returns {Component} component rendering result
+     */
     render() {
         return Void.createElement('p', {}, ...this.content);
     }
@@ -331,24 +339,24 @@ class Text extends Layout {
 
 /**
  * Check if the given object is a callable function.
- * @param func target object
- * @returns true if the object is callable
+ * @param {Function} func target object
+ * @returns {boolean} true if the object is callable
  */
 const __checkFunction = (func) => typeof func == 'function';
 
 /**
  * Check if the given object is a constructor of a class.
- * @param func target object
- * @returns true if the object is a class constructor
+ * @param {Function} func target object
+ * @returns {boolean} true if the object is a class constructor
  */
 const __checkConstructor = (func) => !Object.hasOwn(Object.getPrototypeOf(func), 'constructor');
 
 class Void {
     /**
      * Handle react-like element creation.
-     * @param data element tag or data
-     * @param attributes element attributes
-     * @param content element child nodes
+     * @param {string | Component | Function} data element tag or data
+     * @param {Object} attributes element attributes
+     * @param {...(Component | any)} content element child nodes
      */
     static createElement = (data, attributes, ...content) => {
         // check if the given data is a function or a constructor
@@ -376,6 +384,8 @@ class Void {
 
     /**
      * Create a content root to render elements into.
+     * @param {string} name - root html element name
+     * @returns {HTMLDivElement} - new html root element
      */
     static createRoot = (name = 'root') => {
         // create the root element
@@ -388,8 +398,8 @@ class Void {
 
     /**
      * Render a drawable component on the given canvas HTML element.
-     * @param component component to render
-     * @param root element to render to
+     * @param {Component} component component to render
+     * @param {HTMLElement} root element to render to
      */
     static render = (component, root) => {
         component.parent = root;
@@ -409,15 +419,14 @@ class Void {
 
     /**
      * Append style properties for the given component.
-     * @param component target component
-     * @param style component style
+     * @param {Component} component target component
+     * @param {Object} style component style
      */
     static addStyle = (component, style) => {
         // parse the style to string
         let parsedStyle = `#${component.attributes.id} {`;
-        for (const property in style) {
+        for (const property in style)
             parsedStyle += `${property}:${style[property]};`;
-        }
         globalStyle.innerHTML += parsedStyle + '}';
     }
 }
@@ -428,32 +437,6 @@ React.createElement = Void.createElement;
 
 // call component on load handlers on window load
 window.onload = () => components.forEach(component => component.onLoad());
-
-class Storage {
-    constructor(data) {
-        this.data = data ?? {};
-    }
-
-    get(key, defaultValue = undefined) {
-        return this.data[key] ?? defaultValue;
-    }
-
-    set(key, value) {
-        let old = get(key);
-        this.data[key] = value;
-        return old;
-    }
-
-    has(key) {
-        return key in this.data;
-    }
-
-    unset(key) {
-        let value = this.data[key];
-        delete this.data[key];
-        return value;
-    }
-}
 
 /**
  * Represents a page in an application that can render elements separately from other pages.
@@ -471,7 +454,7 @@ class Page {
 
     /**
      * Render the content of the page.
-     * @returns page content
+     * @returns {Component} page content
      */
     render() {
         return this.renderer();
@@ -482,12 +465,16 @@ class Page {
  * Represents a Void rendering application environment.
  */
 class App {
+    /**
+     * The currently rendering app.
+     * @type {App}
+     */
     static currentApp;
 
     /**
      * Initialize application.
-     * @param root application root element
-     * @param pages initial pages data
+     * @param {HTMLElement} root application root element
+     * @param {Map<string, Page> | null} pages initial pages data
      */
     constructor(root, pages) {
         this.root = root;
@@ -497,9 +484,9 @@ class App {
 
     /**
      * Register a page to the application.
-     * @param name page name
-     * @param renderer page content renderer
-     * @param page page to register
+     * @param {string} name page name
+     * @param {Component} renderer page content renderer
+     * @param {{}} options - renderer options
      */
     register(name, renderer, options) {
         // create the page
@@ -510,7 +497,7 @@ class App {
 
     /**
      * Render the specified page.
-     * @param name page name
+     * @param {string} name page name
      */
     render(name) {
         // get the page from name
@@ -555,8 +542,8 @@ class EventEmitter {
 
     /**
      * Subscribe a new listener for the specified event type.
-     * @param event - event type
-     * @param listener - listener for the event
+     * @param {string} event - event type
+     * @param {(...args: any) => void} listener - listener for the event
      */
     on(event, listener) {
         if (!this.listeners[event])
@@ -566,8 +553,8 @@ class EventEmitter {
 
     /**
      * Unsubscribe an event listener from the specified event type.
-     * @param event - event type
-     * @param listener - listener for the event
+     * @param {string} event - event type
+     * @param {(...args: any) => void} listener - listener for the event
      */
     off(event, listener) {
         this.listeners[event].filter(item => item !== listener);
@@ -575,28 +562,27 @@ class EventEmitter {
 
     /**
      * Emit an event with the specified arguments.
-     * @param event - event type
-     * @param args - event call arguments
-     * @returns
+     * @param {string} event - event type
+     * @param {...any} args - event call arguments
      */
     emit(event, ...args) {
         const listeners = this.listeners[event];
         if (!listeners)
             return;
-        for (const listener of listeners) {
+        for (const listener of listeners)
             listener(...args);
-        }
     }
 }
 
 /**
  * Represents a state observer that is able to tract the mutation of a value.
+ * @template T - observer state value type
  */
 class Observer extends EventEmitter {
     /**
      * Initialize the state observer.
-     * @param {*} defaultValue - observer default value
-     * @param {Observer[]} targets - observer initial target components
+     * @param {T} defaultValue - observer default value
+     * @param {Component[]} targets - observer initial target components
      */
     constructor(defaultValue, ...targets) {
         super();
@@ -606,14 +592,14 @@ class Observer extends EventEmitter {
 
     /**
      * Get the value of the observer.
-     * @returns {*} current observer value
+     * @returns {T} current observer value
      */
     get() {
         return this.value;
     }
 
     /**
-     * Refrest the target components of the observer.
+     * Refresh the target components of the observer.
      */
     mutate() {
         for (const target of this.targets)
@@ -623,7 +609,7 @@ class Observer extends EventEmitter {
 
     /**
      * Update the value of the observer.
-     * @param {*} newValue - new observer value
+     * @param {T} newValue - new observer value
      */
     set(newValue) {
         this.value = newValue;
@@ -743,8 +729,8 @@ class Observer extends EventEmitter {
 }
 
 /**
- * Create a new state observer of the specified initial value and refresh target componentes.
- * @param defaultValue - initial observer alue
+ * Create a new state observer of the specified initial value and refresh target components.
+ * @param defaultValue - initial observer value
  * @param {...Component} targets - target observer components
  * @returns {Observer} new state observer
  */
