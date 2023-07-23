@@ -59,7 +59,8 @@ public class Compiler {
 
         // create the JSX to JS transformer
         JSXTransformer transformer = new JSXTransformer();
-        transformer.setModulePaths(Collections.singletonList("https://cdnjs.cloudflare.com/ajax/libs/react/0.14.0-beta3/"));
+        // transformer.setModulePaths(Collections.singletonList("https://cdnjs.cloudflare.com/ajax/libs/react/0.14.0-beta3/"));
+        transformer.setModulePaths(Collections.singletonList("file:///D:/.dev/GitHub/VoidRenderer/lib/"));
         transformer.setJsxTransformerJS("JSXTransformer.js");
         transformer.init();
 
@@ -177,7 +178,7 @@ public class Compiler {
     }
 
     private void writeFile(File file, String content) {
-        try (OutputStreamWriter writer = new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8)) {
+        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
             writer.write(content);
         } catch (IOException e) {
             System.out.println("Unable to write file " + file);
@@ -196,11 +197,14 @@ public class Compiler {
         File[] files = directory.listFiles();
         if (files == null)
             return;
+        List<File> dirs = new ArrayList<>();
         for (File file : files) {
             if (file.isFile())
                 result.add(file);
             else
-                walk(file, result);
+                dirs.add(file);
         }
+        for (File dir : dirs)
+            walk(dir, result);
     }
 }

@@ -54,8 +54,10 @@ class Component {
         this.attributes = attributes || {};
         this.content = content || [];
         this.attributes.id = this.attributes.id || randomID();
+        this.state = {};
         // register the component globally
         components.push(this);
+        this.parseAttributes();
         this.onMount();
     }
 
@@ -63,7 +65,7 @@ class Component {
      * Render the component. Determine what exactly should be displayed
      * on the screen from the component. By default, the component renders
      * itself, but class-based renderers may override this.
-     * @returns 
+     * @returns
      */
     render() {
         return this;
@@ -73,7 +75,6 @@ class Component {
      * Called after the component was initialized.
      */
     onMount() {
-        this.parseAttributes();
     }
 
     /**
@@ -122,8 +123,32 @@ class Component {
     }
 
     /**
+     * Refresh the inner html of this component.
+     */
+    refresh() {
+        if (this.rendered) {
+            const element = document.getElementById(this.rendered.attributes.id);
+            element.innerHTML = this.render().parse();
+        }
+    }
+
+    /**
+     * Update the state of the component.
+     * @param newState - new component states
+     */
+    setState(newState) {
+        // update the state object
+        this.state = {
+            ...this.state,
+            ...newState
+        }
+        // refresh the application
+        this.refresh();
+    }
+
+    /**
      * Parse the full component with all its nodes to a string,
-     * that can be rendered onto a HTML root element. 
+     * that can be rendered onto a HTML root element.
      * @returns component string representation
      */
     parse() {
@@ -144,8 +169,13 @@ class Component {
             let parsedContent = '';
             for (const node of content) {
                 // parse the node, if it is a component as well
-                if (node instanceof Component)
+                if (node instanceof Component) {
+                    node.parent = this;
                     parsedContent += node.parse();
+                }
+                // parse observable state
+                else if (node instanceof Observer)
+                    parsedContent += node.get();
                 // node is not a component, more like a raw value
                 // append it without any modification
                 else
@@ -202,10 +232,8 @@ class Component {
         // add component-declared style
         for (let key in componentStyle) {
             // check if the key is an aliase
-            if (key in styles) {
+            if (key in styles)
                 key = styles[key];
-            }
-            console.log('fos', key, componentStyle[key])
             styleParsed += `${key}:${componentStyle[key]};`;
         }
         this.styleParsed = styleParsed;
@@ -264,7 +292,7 @@ class Layout extends Component {
      * Render the component. Determine what exactly should be displayed
      * on the screen from the component. By default, the component renders
      * itself, but class-based renderers may override this.
-     * @returns 
+     * @returns
      */
     render() {
         // create the parent class that will hold the elements
@@ -303,7 +331,7 @@ class Text extends Layout {
 
 /**
  * Check if the given object is a callable function.
- * @param func target object 
+ * @param func target object
  * @returns true if the object is callable
  */
 const __checkFunction = (func) => typeof func == 'function';
@@ -311,7 +339,7 @@ const __checkFunction = (func) => typeof func == 'function';
 /**
  * Check if the given object is a constructor of a class.
  * @param func target object
- * @returns true if the object is a class constructor 
+ * @returns true if the object is a class constructor
  */
 const __checkConstructor = (func) => !Object.hasOwn(Object.getPrototypeOf(func), 'constructor');
 
@@ -320,7 +348,7 @@ class Void {
      * Handle react-like element creation.
      * @param data element tag or data
      * @param attributes element attributes
-     * @param content element child nodes 
+     * @param content element child nodes
      */
     static createElement = (data, attributes, ...content) => {
         // check if the given data is a function or a constructor
@@ -359,14 +387,17 @@ class Void {
     }
 
     /**
-     * Render a drawable component on the given canvas HTML element. 
-     * @param component component to render 
+     * Render a drawable component on the given canvas HTML element.
+     * @param component component to render
      * @param root element to render to
      */
     static render = (component, root) => {
+        component.parent = root;
         // make the component render itself to a component
         let rendered = component.render();
-        // se the rendered element's id to the component element
+        component.rendered = rendered;
+        rendered.parent = rendered;
+        // set the rendered element's id to the component element
         rendered.attributes.id = component.attributes.id;
         // parse the rendered component
         let parsed = rendered.parse();
@@ -379,7 +410,7 @@ class Void {
     /**
      * Append style properties for the given component.
      * @param component target component
-     * @param style component style 
+     * @param style component style
      */
     static addStyle = (component, style) => {
         // parse the style to string
@@ -431,7 +462,7 @@ class Page {
     /**
      * Initialize the page.
      * @param page page renderer function
-     * @param options page options 
+     * @param options page options
      */
     constructor(renderer, options) {
         this.renderer = renderer;
@@ -451,21 +482,24 @@ class Page {
  * Represents a Void rendering application environment.
  */
 class App {
+    static currentApp;
+
     /**
      * Initialize application.
      * @param root application root element
-     * @param pages initial pages data 
+     * @param pages initial pages data
      */
     constructor(root, pages) {
         this.root = root;
         this.pages = pages ?? {};
+        App.currentApp = this;
     }
 
     /**
      * Register a page to the application.
      * @param name page name
      * @param renderer page content renderer
-     * @param page page to register 
+     * @param page page to register
      */
     register(name, renderer, options) {
         // create the page
@@ -476,7 +510,7 @@ class App {
 
     /**
      * Render the specified page.
-     * @param name page name 
+     * @param name page name
      */
     render(name) {
         // get the page from name
@@ -488,5 +522,242 @@ class App {
         let component = page.render() || Void.createElement('pre', {}, `Page '${name}' is has nothing to render`);
         // render the component on the application root
         Void.render(component, this.root);
+        this.currentPage = { page, name };
     }
+
+    /**
+     * Refresh the currently rendered page.
+     */
+    refresh() {
+        // return if there is no page rendered at the moment
+        if (!this.currentPage)
+            return;
+        // create the page component
+        let component = this.currentPage.page.render()
+            || Void.createElement('pre', {}, `Page '${this.currentPage.name}' is has nothing to render`);
+        // reset the existing html code
+        this.root.innerHTML = ''
+        // render the component on the application root
+        Void.render(component, this.root);
+    }
+}
+
+/**
+ * Represents an event manager which can register, unregister and call certain event types.
+ */
+class EventEmitter {
+    /**
+     * Initialize the event emitter.
+     */
+    constructor() {
+        this.listeners = {}
+    }
+
+    /**
+     * Subscribe a new listener for the specified event type.
+     * @param event - event type
+     * @param listener - listener for the event
+     */
+    on(event, listener) {
+        if (!this.listeners[event])
+            this.listeners[event] = [];
+        this.listeners[event].push(listener);
+    }
+
+    /**
+     * Unsubscribe an event listener from the specified event type.
+     * @param event - event type
+     * @param listener - listener for the event
+     */
+    off(event, listener) {
+        this.listeners[event].filter(item => item !== listener);
+    }
+
+    /**
+     * Emit an event with the specified arguments.
+     * @param event - event type
+     * @param args - event call arguments
+     * @returns
+     */
+    emit(event, ...args) {
+        const listeners = this.listeners[event];
+        if (!listeners)
+            return;
+        for (const listener of listeners) {
+            listener(...args);
+        }
+    }
+}
+
+/**
+ * Represents a state observer that is able to tract the mutation of a value.
+ */
+class Observer extends EventEmitter {
+    /**
+     * Initialize the state observer.
+     * @param {*} defaultValue - observer default value
+     * @param {Observer[]} targets - observer initial target components
+     */
+    constructor(defaultValue, ...targets) {
+        super();
+        this.value = defaultValue;
+        this.targets = targets;
+    }
+
+    /**
+     * Get the value of the observer.
+     * @returns {*} current observer value
+     */
+    get() {
+        return this.value;
+    }
+
+    /**
+     * Refrest the target components of the observer.
+     */
+    mutate() {
+        for (const target of this.targets)
+            target.refresh();
+        this.emit('mutate', this.value);
+    }
+
+    /**
+     * Update the value of the observer.
+     * @param {*} newValue - new observer value
+     */
+    set(newValue) {
+        this.value = newValue;
+        this.mutate();
+    }
+
+    /**
+     * Subscribe a new component for the observer to be refreshed on mutation.
+     * @param {Component} target - additional observer target
+     */
+    subscribe(target) {
+        this.targets.push(target);
+    }
+
+    /**
+     * Unsubscribe a component from the observer mutation refresher.
+     * @param {Component} target - observer target to remove
+     */
+    unsubscribe(target) {
+        this.targets.filter(item => item !== element);
+    }
+
+    /**
+     * Increment the value of the observer if it is a number.
+     */
+    increment() {
+        if (/^-?[\d.]+(?:e-?\d+)?$/.test(this.value)) {
+            this.value++;
+            this.mutate();
+            this.emit('increment', this.value);
+        }
+    }
+
+    /**
+     * Decrement the value of the observer if it is a number.
+     */
+    decrement() {
+        if (/^-?[\d.]+(?:e-?\d+)?$/.test(this.value)) {
+            this.value--;
+            this.mutate();
+            this.emit('decrement', this.value);
+        }
+    }
+
+    /**
+     * Add the specified amount to the observer value if it is a number.
+     * @param {number} amount - number to add
+     */
+    add(amount) {
+        if (/^-?[\d.]+(?:e-?\d+)?$/.test(this.value)) {
+            this.value += amount;
+            this.mutate();
+            this.emit('add', this.value);
+        }
+    }
+
+    /**
+     * Subtract the observer value with the specified amount if it is a number.
+     * @param {number} amount - number to add
+     */
+    subtract(amount) {
+        if (/^-?[\d.]+(?:e-?\d+)?$/.test(this.value)) {
+            this.value -= amount;
+            this.mutate();
+            this.emit('subtract', this.value);
+            this.emit('subtract', this.value);
+        }
+    }
+
+    /**
+     * Multiply the observer value with the specified amount if it is a number.
+     * @param {number} amount - number to multiply with
+     */
+    multiply(amount) {
+        if (/^-?[\d.]+(?:e-?\d+)?$/.test(this.value)) {
+            this.value *= amount;
+            this.mutate();
+            this.emit('multiply', this.value);
+        }
+    }
+
+    /**
+     * Divide the observer value with the specified amount if it is a number.
+     * @param {number} amount - number to divide with
+     */
+    divide(amount) {
+        if (/^-?[\d.]+(?:e-?\d+)?$/.test(this.value)) {
+            this.value /= amount;
+            this.mutate();
+            this.emit('divide', this.value);
+        }
+    }
+
+    /**
+     * Get the total length of the observer value.
+     * @returns {number} observer state value length
+     */
+    length() {
+        return toString(this.value).length
+    }
+
+    /**
+     * Convert the observer value to an integer.
+     * @returns {number} observer state as int
+     */
+    toInt() {
+        return parseInt(toString(this.value))
+    }
+
+    /**
+     * Convert the observer value to a float.
+     * @returns {number} observer state as float
+     */
+    toFloat() {
+        return parseFloat(toString(this.value))
+    }
+}
+
+/**
+ * Create a new state observer of the specified initial value and refresh target componentes.
+ * @param defaultValue - initial observer alue
+ * @param {...Component} targets - target observer components
+ * @returns {Observer} new state observer
+ */
+const useState = (defaultValue, ...targets) => {
+    return new Observer(defaultValue, ...targets);
+}
+
+/**
+ * Create a mutation callback that is called when any of the specified observers is mutated.
+ * @param {function} callback - mutation callback
+ * @param {Observer[]} observers - target observers
+ */
+const useEffect = (callback, observers) => {
+    for (const observer of observers)
+        observer.on('mutate', callback);
 }
