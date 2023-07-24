@@ -178,7 +178,7 @@ public class Compiler {
     }
 
     private void writeFile(File file, String content) {
-        try (FileWriter writer = new FileWriter(file, StandardCharsets.UTF_8)) {
+        try (FileWriter writer = new FileWriter(file)) {
             writer.write(content);
         } catch (IOException e) {
             System.out.println("Unable to write file " + file);

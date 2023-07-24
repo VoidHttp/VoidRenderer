@@ -53,7 +53,17 @@ class Component {
     constructor(tag, attributes, ...content) {
         this.tag = tag;
         this.attributes = attributes || {};
-        this.content = content || [];
+        // extract elements from the content if they are passed as a list
+        function extractContent(result, data) {
+            for (const element of data) {
+                if (Array.isArray(element))
+                    extractContent(result, element);
+                else
+                    result.push(element)
+            }
+        }
+        extractContent(this.content = [], content || []);
+        // extract lists from content
         this.attributes.id = this.attributes.id || randomID();
         this.state = {};
         // register the component globally
@@ -89,12 +99,12 @@ class Component {
      */
     onLoad() {
         // get the HTML representation of the component
-        let element = this.getElement();
+        let element = this.handle();
         if (element == null)
             return;
         // register the component listeners
         if (this.attributes.onclick != null) {
-            element.addEventListener('click', this.attributes.onclick);
+            element.addEventListener('click', this.attributes.onclick.bind(this));
         }
     }
 
@@ -120,7 +130,7 @@ class Component {
      * Get the component's corresponding HTMl element.
      * @returns {HTMLElement | null} DOM component element
      */
-    getElement() {
+    handle() {
         return document.getElementById(this.attributes.id);
     }
 
@@ -128,6 +138,7 @@ class Component {
      * Refresh the inner html of this component.
      */
     refresh() {
+        console.log('refreshin', this.tag);
         if (this.rendered) {
             const element = document.getElementById(this.rendered.attributes.id);
             element.innerHTML = this.render().parse();
@@ -154,6 +165,12 @@ class Component {
      * @returns {string} component string representation
      */
     parse() {
+        // make sure to call the render method of a class component
+        // if the render method returns this, that means, this component should be rendered directly
+        const rendered = this.render();
+        if (rendered != this)
+            return (this.rendered = rendered).parse();
+
         // extract the parse information from this component
         const tag = this.tag;
         const attributes = this.attributes;
@@ -189,7 +206,7 @@ class Component {
 
         // component does not have any children
         // parse it with the simplified tag design
-        return `<${tag}${parsedAttributes}/>`;
+        return `<${tag}${parsedAttributes}></${tag}>`;
     }
 
     /**
@@ -612,6 +629,8 @@ class Observer extends EventEmitter {
      * @param {T} newValue - new observer value
      */
     set(newValue) {
+        if (this.value === newValue)
+            return;
         this.value = newValue;
         this.mutate();
     }
@@ -730,9 +749,10 @@ class Observer extends EventEmitter {
 
 /**
  * Create a new state observer of the specified initial value and refresh target components.
- * @param defaultValue - initial observer value
+ * @template {T} - observer type
+ * @param {T} defaultValue - initial observer value
  * @param {...Component} targets - target observer components
- * @returns {Observer} new state observer
+ * @returns {Observer<T>} new state observer
  */
 const useState = (defaultValue, ...targets) => {
     return new Observer(defaultValue, ...targets);
@@ -741,9 +761,18 @@ const useState = (defaultValue, ...targets) => {
 /**
  * Create a mutation callback that is called when any of the specified observers is mutated.
  * @param {function} callback - mutation callback
- * @param {Observer[]} observers - target observers
+ * @param {Observer<any>[]} observers - target observers
  */
 const useEffect = (callback, observers) => {
     for (const observer of observers)
         observer.on('mutate', callback);
+}
+
+/**
+ * Create a window event listener for the specified event type.
+ * @param {string} event - event name
+ * @param {(...args: any) => void} callback - event listener
+ */
+const on = (event, callback) => {
+    window.addEventListener(event, callback);
 }
